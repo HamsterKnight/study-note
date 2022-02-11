@@ -6,7 +6,26 @@
   - redux-thunk: 应用了redux-thunk中间件后，允许action是一个函数, thunk中间件一般放在第一个
     - 内部运作原理
       - 如果发现action是一个函数，那么action不会往后移交，而是直接调用action函数
-  
+      
+        ```js
+        //redux-thunk源码实现
+        function reduxThunk() {
+        	return (store)=>(next)=>(action)=>{
+                if(typeof action === 'function') {
+        			return action()
+                } else {
+                    next(action)
+                }
+        	}
+        }
+        
+        //当action是一个函数的时候，那么不往下移交
+        // 如果是正常的action则往下移交
+        
+        ```
+      
+        
+    
   - redux-promise
     - 内部原理
       - 两种情况
@@ -141,10 +160,41 @@
   
     - **fork**指令，用于开启一个新的任务，任务不会阻塞，该函数需要传递一个生成器函数
       - fork返回一个Task任务对象
+      
     - **cancel**指令，用于取消一个任务
       - 原理，是调用generator.retrun方法，直接结束生成器函数
+      
     - **takeLatest**指令，跟takeEvery差不多的功能，但是会取消上一次执行任务
-    - **cancelled**
+  
+    - **cancelled**指令，判断当前任务线是否被取消
+  
+    - **race**指令，竞赛【阻塞】当有一个任务线结束后，结束指令
+  
+      - 接受一个参数，参数为对象，键值是自定义任务名字，键值是任务
+  
+      ```js
+      // 先增、后停止
+      function* autoIncreaseAndStop() {
+          while(true) {
+              yield take('autoIncrease')// 监听autoIncrease的触发
+              // autoIncrease触发后，会进入竞赛
+              // action1永远不会结束
+              // 当action2触发后，就会结束，竞赛结束，取消其他任务
+              yield race({
+                  action1: function* () {
+                      while(true) {
+                          yield delay(2000)
+                          yield put({type: 'autoIncrease'})
+                      }
+                  },
+                  action2: take('stopAutoIncrease')
+              })
+          } 
+      }
+      
+      ```
+  
+      
   
   - saga的指令的一些场景
   
@@ -175,6 +225,30 @@
       ```
   
     - 流程控制场景，比如先增加、后停止、先增加、后停止
+    
+      ```js
+      function* autoIncreaseAndStop() {
+          while(true) {
+              yiled take('autoIncrease') // 先监听自动增加的actionType,因为take是阻塞的，当触发当前actionType的时候才会向下执行
+              const task = yiled fork(function* () { // 自动增加的actionType被触发后，新开一个任务线去触发自动增加
+                  while(true) {
+                      yiled delay(2000)
+                      yiled put({type: 'autoIncrease'})
+                  }
+              })
+              yilde take('stopIncrease') // 当自动增加的actionType触发后，流程往下走，阻塞到停止自动增加上，只有当停止增加方法触发后，才会往下继续走流程，不然多次触发自动增加是不起作用的
+              yiled cancel(task)
+          }
+          
+      }
+      
+      function* sagaTask() {
+          // 开启一个新的任务线
+          yield fork(autoIncreaseAndStop)
+      }
+      ```
+    
+      
 
 ​		
 
