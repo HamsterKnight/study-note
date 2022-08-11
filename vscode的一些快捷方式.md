@@ -1,0 +1,1 @@
+`command + shift + L` 选中代码块中相同的内容
